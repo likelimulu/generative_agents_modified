@@ -25,6 +25,67 @@ def ChatGPT_single_request(prompt):
   )
   return completion["choices"][0]["message"]["content"]
 
+# ============================================================================
+# #####################[SECTION x: Llama-2 STRUCTURE] ######################
+# ============================================================================
+
+import requests
+def Llama2_request(prompt): 
+  """
+  Given a prompt, make a request to llama-2 server and returns the response. 
+  ARGS:
+    prompt: a str prompt
+  RETURNS: 
+    a str of GPT-3's response. 
+  """
+  api_url = #TODO:set the llama2 server and copy the link to here , the link example is like: 'https://spip03jtgd.execute-api.us-east-1.amazonaws.com/default/call-bloom-llm'
+  
+  json_body = {
+   "inputs": [[{"role": "system", "content": "You are a helpful chat bot"},
+               {"role": "user", "content": prompt}]],
+   "parameters": {"max_new_tokens":256, "top_p":0.9, "temperature":0.6}
+  }
+
+  response_json = requests.post(api_url, json=json_body)
+  return response_json["generation"]["content"]
+
+def Llama2_safe_generate_response(prompt, 
+                                   example_output,
+                                   special_instruction,
+                                   repeat=3,
+                                   fail_safe_response="error",
+                                   func_validate=None,
+                                   func_clean_up=None,
+                                   verbose=False): 
+  prompt = 'Llama2 Prompt:\n"""\n' + prompt + '\n"""\n'
+  prompt += f"Output the response to the prompt above in json. {special_instruction}\n"
+  prompt += "Example output json:\n"
+  prompt += '{"output": "' + str(example_output) + '"}'
+
+  if verbose: #如果是verbose的话，就会输出所有和gpt交互的信息(例如输入、输出等)
+    print ("Llama2 PROMPT")
+    print (prompt)
+
+  for i in range(repeat): 
+
+    try: 
+      curr_gpt_response = Llama2_request(prompt).strip()
+      end_index = curr_gpt_response.rfind('}') + 1  #这个用在Llama2上可能会有bug
+      curr_gpt_response = curr_gpt_response[:end_index]
+      curr_gpt_response = json.loads(curr_gpt_response)["output"]
+      
+      if func_validate(curr_gpt_response, prompt=prompt): 
+        return func_clean_up(curr_gpt_response, prompt=prompt)
+      
+      if verbose:
+        print ("---- repeat count: \n", i, curr_gpt_response)
+        print (curr_gpt_response)
+        print ("~~~~")
+
+    except: 
+      pass
+
+  return False
 
 # ============================================================================
 # #####################[SECTION 1: CHATGPT-3 STRUCTURE] ######################
